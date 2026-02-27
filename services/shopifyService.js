@@ -1,119 +1,63 @@
-const axios = require('axios');
+const { google } = require('googleapis');
 
-const SHOPIFY_STORE = process.env.SHOPIFY_SHOP_DOMAIN;
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+  scopes: ['https://www.googleapis.com/auth/spreadsheets']
+});
 
-const shopifyGraphQL = async (query, variables = {}) => {
-  const url = `https://${SHOPIFY_STORE}/admin/api/2025-01/graphql.json`;
-  
+const sheets = google.sheets({ version: 'v4', auth });
+
+exports.appendFormData = async (data) => {
   try {
-    const response = await axios.post(url, {
-      query,
-      variables
-    }, {
-      headers: {
-        'X-Shopify-Access-Token': ACCESS_TOKEN,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    return response.data;
-  } catch (error) {
-    console.error('GraphQL Error:', error.response?.data || error.message);
-    throw error;
-  }
-};
+    const values = [[
+      data.mobileLog || data.mobile,
+      data.firstName || '',
+      data.lastName || '',
+      data.email || '',
+      data.gender || '',
+      data.mobile || '',
+      data.whatsapp || '',
+      data.dateOfBirth || '',
+      data.weddingAnniversary || '',
+      data.ageGroup || '',
+      data.sourceOfReferral || '',
+      data.country || '',
+      data.state || '',
+      data.city || '',
+      data.pincode || '',
+      data.deliveryDifferent || '',
+      data.deliveryCountry || '',
+      data.deliveryState || '',
+      data.deliveryCity || '',
+      data.deliveryPincode || '',
+      data.customerType || '',
+      data.businessName || '',
+      data.businessCategory || '',
+      data.businessMobile || '',
+      data.businessEmail || '',
+      data.businessAddress || '',
+      data.businessArea || '',
+      data.businessCity || '',
+      data.businessState || '',
+      data.businessPincode || '',
+      data.gstNumber || '',
+      data.consentMarketing || '',
+      data.consentWhatsApp || '',
+      data.consentTerms || '',
+      data.referralCode || ''
+    ]];
 
-exports.createOrUpdateCustomer = async (customerData) => {
-  try {
-    // Search for existing customer
-    const searchQuery = `
-      query searchCustomer($email: String!) {
-        customers(first: 1, query: $email) {
-          edges {
-            node {
-              id
-              firstName
-              lastName
-              email
-              phone
-            }
-          }
-        }
-      }
-    `;
-    
-    const searchResult = await shopifyGraphQL(searchQuery, {
-      email: `email:${customerData.email}`
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: 'Registrations!A:AI',
+      valueInputOption: 'USER_ENTERED',
+      resource: { values }
     });
-    
-    const existingCustomer = searchResult.data?.customers?.edges[0]?.node;
-    
-    if (existingCustomer) {
-      // Update existing customer
-      const updateMutation = `
-        mutation updateCustomer($input: CustomerInput!) {
-          customerUpdate(input: $input) {
-            customer {
-              id
-              firstName
-              lastName
-              email
-              phone
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-      
-      const updateResult = await shopifyGraphQL(updateMutation, {
-        input: {
-          id: existingCustomer.id,
-          firstName: customerData.firstName,
-          lastName: customerData.lastName,
-          phone: customerData.phone,
-          tags: [customerData.tags]
-        }
-      });
-      
-      return updateResult.data.customerUpdate.customer;
-    } else {
-      // Create new customer
-      const createMutation = `
-        mutation createCustomer($input: CustomerInput!) {
-          customerCreate(input: $input) {
-            customer {
-              id
-              firstName
-              lastName
-              email
-              phone
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-      `;
-      
-      const createResult = await shopifyGraphQL(createMutation, {
-        input: {
-          firstName: customerData.firstName,
-          lastName: customerData.lastName,
-          email: customerData.email,
-          phone: customerData.phone,
-          tags: [customerData.tags]
-        }
-      });
-      
-      return createResult.data.customerCreate.customer;
-    }
+
+    console.log('✅ Data added to Google Sheet');
+    return true;
   } catch (error) {
-    console.error('Customer operation error:', error);
-    throw new Error(`Shopify API error: ${error.message}`);
+    console.error('Google Sheets Error:', error.message);
+    throw new Error(`Google Sheets error: ${error.message}`);
   }
 };
