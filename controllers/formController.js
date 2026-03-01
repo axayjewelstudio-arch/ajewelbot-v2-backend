@@ -23,7 +23,16 @@ exports.handleFormSubmission = async (req, res) => {
         formData.customerType,
         formData.sourceOfReferral,
         'join-us-registration'
-      ].filter(Boolean).join(', ')
+      ].filter(Boolean).join(', '),
+      
+      password: formData.password,
+      password_confirmation: formData.password,
+      accepts_marketing: formData.consentMarketing === 'yes',
+      sms_marketing_consent: {
+        state: formData.consentWhatsApp === 'yes' ? 'subscribed' : 'unsubscribed',
+        opt_in_level: 'single_opt_in',
+        consent_updated_at: new Date().toISOString()
+      }
     };
 
     const shopifyCustomer = await shopifyService.createCustomer(customerData);
