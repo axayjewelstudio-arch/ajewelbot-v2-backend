@@ -25,9 +25,8 @@ exports.handleFormSubmission = async (req, res) => {
         'join-us-registration'
       ].filter(Boolean).join(', '),
       
-      password: formData.password,
-      password_confirmation: formData.password,
-		verified_email: true,
+      // ✅ PASSWORD REMOVED
+      verified_email: true,
       accepts_marketing: formData.consentMarketing === 'yes',
       sms_marketing_consent: {
         state: formData.consentWhatsApp === 'yes' ? 'subscribed' : 'unsubscribed',
