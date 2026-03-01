@@ -5,7 +5,7 @@ const SHEET_NAME = 'Registrations';
 const RANGE = 'B:AI';
 
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
   scopes: ['https://www.googleapis.com/auth/spreadsheets']
 });
 
