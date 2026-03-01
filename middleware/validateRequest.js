@@ -32,7 +32,7 @@ exports.validateFormData = (req, res, next) => {
     });
   }
 
-  if (!customerType || !['Retail', 'B2B'].includes(customerType)) {
+  if (!customerType || !['Retail', 'Wholesale'].includes(customerType)) {
     return res.status(400).json({
       success: false,
       message: 'Invalid customer type'

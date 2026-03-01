@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const SHOPIFY_STORE = process.env.SHOPIFY_SHOP_DOMAIN;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_API_SECRET;
 
 const shopifyAPI = axios.create({
   baseURL: `https://${SHOPIFY_STORE}/admin/api/2024-01`,
