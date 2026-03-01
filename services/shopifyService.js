@@ -1,21 +1,24 @@
 const axios = require('axios');
 
-const SHOPIFY_STORE = process.env.SHOPIFY_SHOP_DOMAIN;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_API_SECRET;
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN;
+const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const API_VERSION = '2024-01';
 
 const shopifyAPI = axios.create({
-  baseURL: `https://${SHOPIFY_STORE}/admin/api/2024-01`,
+  baseURL: `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}`,
   headers: {
-    'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'X-Shopify-Access-Token': ACCESS_TOKEN
   }
 });
 
+// Create customer
 exports.createCustomer = async (customerData) => {
   try {
     const response = await shopifyAPI.post('/customers.json', {
       customer: customerData
     });
+    console.log('✅ Customer created:', response.data.customer.id);
     return response.data.customer;
   } catch (error) {
     console.error('Shopify create customer error:', error.response?.data || error.message);
@@ -23,12 +26,18 @@ exports.createCustomer = async (customerData) => {
   }
 };
 
-exports.addCustomerAddress = async (addressData) => {
+// Add customer address
+exports.addCustomerAddress = async (customerId, addressData) => {
   try {
-    const customerId = addressData.customer_id;
-    const response = await shopifyAPI.post(`/customers/${customerId}/addresses.json`, {
-      address: addressData.address
+    // Extract numeric ID from GID if needed
+    const numericId = typeof customerId === 'string' && customerId.includes('gid://')
+      ? customerId.split('/').pop()
+      : customerId;
+
+    const response = await shopifyAPI.post(`/customers/${numericId}/addresses.json`, {
+      address: addressData
     });
+    console.log('✅ Address added for customer:', numericId);
     return response.data.customer_address;
   } catch (error) {
     console.error('Shopify add address error:', error.response?.data || error.message);
@@ -36,22 +45,27 @@ exports.addCustomerAddress = async (addressData) => {
   }
 };
 
-exports.addCustomerMetafields = async (metafields) => {
+// Add customer metafields
+exports.addCustomerMetafields = async (customerId, metafields) => {
   try {
-    const promises = metafields.map(async (metafield) => {
-      const customerId = metafield.customer_id;
-      return shopifyAPI.post(`/customers/${customerId}/metafields.json`, {
+    // Extract numeric ID from GID if needed
+    const numericId = typeof customerId === 'string' && customerId.includes('gid://')
+      ? customerId.split('/').pop()
+      : customerId;
+
+    const promises = metafields.map(metafield =>
+      shopifyAPI.post(`/customers/${numericId}/metafields.json`, {
         metafield: {
-          namespace: metafield.namespace,
-          key: metafield.key,
-          value: metafield.value,
-          type: metafield.type
+          ...metafield,
+          owner_id: numericId,
+          owner_resource: 'customer'
         }
-      });
-    });
-    
+      })
+    );
+
     await Promise.all(promises);
-    return { success: true };
+    console.log('✅ Metafields added for customer:', numericId);
+    return true;
   } catch (error) {
     console.error('Shopify add metafields error:', error.response?.data || error.message);
     throw error;
