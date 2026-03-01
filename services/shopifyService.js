@@ -1,63 +1,59 @@
-const { google } = require('googleapis');
+const axios = require('axios');
 
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets']
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+
+const shopifyAPI = axios.create({
+  baseURL: `https://${SHOPIFY_STORE}/admin/api/2024-01`,
+  headers: {
+    'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+    'Content-Type': 'application/json'
+  }
 });
 
-const sheets = google.sheets({ version: 'v4', auth });
-
-exports.appendFormData = async (data) => {
+exports.createCustomer = async (customerData) => {
   try {
-    const values = [[
-      data.mobileLog || data.mobile,
-      data.firstName || '',
-      data.lastName || '',
-      data.email || '',
-      data.gender || '',
-      data.mobile || '',
-      data.whatsapp || '',
-      data.dateOfBirth || '',
-      data.weddingAnniversary || '',
-      data.ageGroup || '',
-      data.sourceOfReferral || '',
-      data.country || '',
-      data.state || '',
-      data.city || '',
-      data.pincode || '',
-      data.deliveryDifferent || '',
-      data.deliveryCountry || '',
-      data.deliveryState || '',
-      data.deliveryCity || '',
-      data.deliveryPincode || '',
-      data.customerType || '',
-      data.businessName || '',
-      data.businessCategory || '',
-      data.businessMobile || '',
-      data.businessEmail || '',
-      data.businessAddress || '',
-      data.businessArea || '',
-      data.businessCity || '',
-      data.businessState || '',
-      data.businessPincode || '',
-      data.gstNumber || '',
-      data.consentMarketing || '',
-      data.consentWhatsApp || '',
-      data.consentTerms || '',
-      data.referralCode || ''
-    ]];
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_ID,
-      range: 'Registrations!A:AI',
-      valueInputOption: 'USER_ENTERED',
-      resource: { values }
+    const response = await shopifyAPI.post('/customers.json', {
+      customer: customerData
     });
-
-    console.log('✅ Data added to Google Sheet');
-    return true;
+    return response.data.customer;
   } catch (error) {
-    console.error('Google Sheets Error:', error.message);
-    throw new Error(`Google Sheets error: ${error.message}`);
+    console.error('Shopify create customer error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+exports.addCustomerAddress = async (addressData) => {
+  try {
+    const customerId = addressData.customer_id;
+    const response = await shopifyAPI.post(`/customers/${customerId}/addresses.json`, {
+      address: addressData.address
+    });
+    return response.data.customer_address;
+  } catch (error) {
+    console.error('Shopify add address error:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+exports.addCustomerMetafields = async (metafields) => {
+  try {
+    const promises = metafields.map(async (metafield) => {
+      const customerId = metafield.customer_id;
+      return shopifyAPI.post(`/customers/${customerId}/metafields.json`, {
+        metafield: {
+          namespace: metafield.namespace,
+          key: metafield.key,
+          value: metafield.value,
+          type: metafield.type
+        }
+      });
+    });
+    
+    await Promise.all(promises);
+    return { success: true };
+  } catch (error) {
+    console.error('Shopify add metafields error:', error.response?.data || error.message);
+    throw error;
   }
 };
