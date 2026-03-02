@@ -1,73 +1,56 @@
 const axios = require('axios');
 
-const SHOPIFY_DOMAIN = process.env.SHOPIFY_SHOP_DOMAIN;
-const ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-const API_VERSION = '2024-01';
+const SHOPIFY_STORE = process.env.SHOPIFY_STORE || 'a-jewel-studio-3.myshopify.com';
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 const shopifyAPI = axios.create({
-  baseURL: `https://${SHOPIFY_DOMAIN}/admin/api/${API_VERSION}`,
+  baseURL: `https://${SHOPIFY_STORE}/admin/api/2024-01`,
   headers: {
-    'Content-Type': 'application/json',
-    'X-Shopify-Access-Token': ACCESS_TOKEN
+    'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+    'Content-Type': 'application/json'
   }
 });
 
-// Create customer
-exports.createCustomer = async (customerData) => {
+exports.createOrUpdateCustomer = async (formData) => {
   try {
-    const response = await shopifyAPI.post('/customers.json', {
-      customer: customerData
-    });
-    console.log('✅ Customer created:', response.data.customer.id);
+    const customerData = {
+      customer: {
+        first_name: formData.firstName || '',
+        last_name: formData.lastName || '',
+        email: formData.email || '',
+        phone: formData.mobile || '',
+        tags: [
+          formData.customerType || 'Retail',
+          formData.sourceOfReferral || '',
+          'join-us-registration'
+        ].filter(Boolean).join(', '),
+        note: `Account Type: ${formData.customerType || 'Retail'}\nBusiness: ${formData.businessName || 'N/A'}\nGST: ${formData.gstNumber || 'N/A'}`,
+        send_email_invite: true,
+        accepts_marketing: formData.consentMarketing === 'yes',
+        sms_marketing_consent: {
+          state: formData.consentWhatsApp === 'yes' ? 'subscribed' : 'unsubscribed',
+          opt_in_level: 'single_opt_in',
+          consent_updated_at: new Date().toISOString()
+        },
+        addresses: [
+          {
+            address1: `${formData.houseNo || ''} ${formData.building || ''}`.trim(),
+            address2: `${formData.street || ''} ${formData.area || ''}`.trim(),
+            city: formData.city || '',
+            province: formData.state || '',
+            zip: formData.pincode || '',
+            country: formData.country || 'India'
+          }
+        ]
+      }
+    };
+    
+    const response = await shopifyAPI.post('/customers.json', customerData);
+    console.log('✅ Shopify customer created successfully');
     return response.data.customer;
+    
   } catch (error) {
-    console.error('Shopify create customer error:', error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// Add customer address
-exports.addCustomerAddress = async (customerId, addressData) => {
-  try {
-    // Extract numeric ID from GID if needed
-    const numericId = typeof customerId === 'string' && customerId.includes('gid://')
-      ? customerId.split('/').pop()
-      : customerId;
-
-    const response = await shopifyAPI.post(`/customers/${numericId}/addresses.json`, {
-      address: addressData
-    });
-    console.log('✅ Address added for customer:', numericId);
-    return response.data.customer_address;
-  } catch (error) {
-    console.error('Shopify add address error:', error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// Add customer metafields
-exports.addCustomerMetafields = async (customerId, metafields) => {
-  try {
-    // Extract numeric ID from GID if needed
-    const numericId = typeof customerId === 'string' && customerId.includes('gid://')
-      ? customerId.split('/').pop()
-      : customerId;
-
-    const promises = metafields.map(metafield =>
-      shopifyAPI.post(`/customers/${numericId}/metafields.json`, {
-        metafield: {
-          ...metafield,
-          owner_id: numericId,
-          owner_resource: 'customer'
-        }
-      })
-    );
-
-    await Promise.all(promises);
-    console.log('✅ Metafields added for customer:', numericId);
-    return true;
-  } catch (error) {
-    console.error('Shopify add metafields error:', error.response?.data || error.message);
-    throw error;
+    console.error('❌ Shopify API error:', error.response?.data || error.message);
+    throw new Error('Failed to create Shopify customer');
   }
 };

@@ -3,160 +3,197 @@ const { google } = require('googleapis');
 const SPREADSHEET_ID = '1w-4Zi65AqsQZFJIr1GLrDrW9BJNez8Wtr-dTL8oBLbs';
 const SHEET_NAME = 'Registrations';
 
-const getGoogleSheet = async () => {
+const getGoogleSheetsAuth = () => {
+  return new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  });
+};
+
+// ✅ Find row by WhatsApp number in Column A
+const findRowByWhatsApp = async (whatsappNumber) => {
   try {
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    const auth = getGoogleSheetsAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:A`
     });
     
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    
-    return {
-      // Get all data from Column A to C
-      getRows: async () => {
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: `${SHEET_NAME}!A:C`
-        });
-        return response.data.values || [];
-      },
-      
-      // Append new row
-      appendRow: async (values) => {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: `${SHEET_NAME}!A:AQ`,
-          valueInputOption: 'RAW',
-          resource: { values: [values] }
-        });
-      },
-      
-      // Update existing row
-      updateRow: async (rowNumber, values) => {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `${SHEET_NAME}!A${rowNumber}:AQ${rowNumber}`,
-          valueInputOption: 'RAW',
-          resource: { values: [values] }
-        });
-      }
-    };
-  } catch (error) {
-    console.error('Google Sheets connection error:', error);
-    throw error;
-  }
-};
-
-// ✅ PROBLEM 1 & 2: Find customer by mobile
-const findCustomerByMobile = async (sheet, mobile) => {
-  try {
-    const rows = await sheet.getRows();
+    const rows = result.data.values || [];
     
     for (let i = 0; i < rows.length; i++) {
-      if (rows[i][0] === mobile) {
-        return {
-          exists: true,
-          rowNumber: i + 1,
-          firstName: rows[i][1] || '',
-          lastName: rows[i][2] || '',
-          hasFormData: !!(rows[i][1] || rows[i][2]) // Check if B or C has data
-        };
+      if (rows[i][0] === whatsappNumber) {
+        return i + 1; // Row number (1-indexed)
       }
     }
     
-    return { exists: false };
+    return null; // Not found
   } catch (error) {
-    console.error('Error finding customer:', error);
-    return { exists: false };
+    console.error('❌ Error finding row:', error.message);
+    return null;
   }
 };
 
-const appendFormData = async (formData) => {
+// ✅ Update existing row (B:AO)
+const updateExistingRow = async (rowNumber, formData) => {
   try {
-    const sheet = await getGoogleSheet();
-    const mobile = formData.mobile || '';
-
-    // ✅ PROBLEM 1 & 2: Check if customer exists
-    const customer = await findCustomerByMobile(sheet, mobile);
-
-    // ✅ PROBLEM 3: Updated column mapping A to AQ (with B & C for names)
+    const auth = getGoogleSheetsAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    
     const rowData = [
-      mobile,                                   // A - Mobile Number
-      formData.firstName || '',                 // B - First Name ✅ NEW
-      formData.lastName || '',                  // C - Last Name ✅ NEW
-      formData.gender || '',                    // D - Gender (was B)
-      formData.mobile || '',                    // E - Mobile (was C)
-      formData.whatsapp || formData.mobile || '', // F - Whatsapp (was D)
-      formData.dob || '',                       // G - Dob (was E)
-      formData.anniversary || '',               // H - Anniversary (was F)
-      formData.ageGroup || '',                  // I - Age_group (was G)
-      formData.sourceOfReferral || '',          // J - Referral_source (was H)
-      formData.houseNo || '',                   // K - House_no (was I)
-      formData.building || '',                  // L - Building (was J)
-      formData.street || '',                    // M - Street (was K)
-      formData.area || '',                      // N - Area (was L)
-      formData.country || '',                   // O - Country (was M)
-      formData.state || '',                     // P - State (was N)
-      formData.city || '',                      // Q - City (was O)
-      formData.pincode || '',                   // R - Pincode (was P)
-      formData.landmark || '',                  // S - Landmark (was Q)
-      formData.delHouseNo || '',                // T - Del_house_no (was R)
-      formData.delBuilding || '',               // U - Del_building (was S)
-      formData.delStreet || '',                 // V - Del_street (was T)
-      formData.delArea || '',                   // W - Del_area (was U)
-      formData.delCountry || '',                // X - Delivery_country (was V)
-      formData.delCity || '',                   // Y - Delivery_city (was W)
-      formData.delPincode || '',                // Z - Delivery_pincode (was X)
-      formData.delLandmark || '',               // AA - Del_landmark (was Y)
-      formData.customerType || '',              // AB - Customer_type (was Z)
-      formData.businessName || '',              // AC - Business_name (was AA)
-      formData.businessCategory || '',          // AD - Business_category (was AB)
-      formData.businessMobile || '',            // AE - Business_mobile (was AC)
-      formData.businessEmail || '',             // AF - Business_email (was AD)
-      formData.businessAddress || '',           // AG - Business_address (was AE)
-      formData.businessArea || '',              // AH - Business_area (was AF)
-      formData.businessCity || '',              // AI - Business_city (was AG)
-      formData.businessState || '',             // AJ - Business_state (was AH)
-      formData.businessPincode || '',           // AK - Business_pincode (was AI)
-      formData.gstNumber || '',                 // AL - Gst_number (was AJ)
-      formData.consentMarketing || '',          // AM - Consent_marketing (was AK)
-      formData.consentWhatsApp || '',           // AN - Consent_whatsapp (was AL)
-      formData.consentTerms || '',              // AO - Consent_terms (was AM)
-      formData.referralCode || '',              // AP - Referral_code (was AN)
-      `${formData.firstName || ''} ${formData.lastName || ''} - ${formData.mobile || ''}`.trim() // AQ - Note (was AO)
+      formData.gender || '',                    // B
+      formData.mobile || '',                    // C
+      formData.whatsapp || formData.mobile || '', // D
+      formData.dob || '',                       // E
+      formData.anniversary || '',               // F
+      formData.ageGroup || '',                  // G
+      formData.sourceOfReferral || '',          // H
+      formData.houseNo || '',                   // I
+      formData.building || '',                  // J
+      formData.street || '',                    // K
+      formData.area || '',                      // L
+      formData.country || 'IN',                 // M
+      formData.state || '',                     // N
+      formData.city || '',                      // O
+      formData.pincode || '',                   // P
+      formData.landmark || '',                  // Q
+      formData.delHouseNo || '',                // R
+      formData.delBuilding || '',               // S
+      formData.delStreet || '',                 // T
+      formData.delArea || '',                   // U
+      formData.delCountry || '',                // V
+      formData.delCity || '',                   // W
+      formData.delPincode || '',                // X
+      formData.delLandmark || '',               // Y
+      formData.customerType || 'Retail',        // Z
+      formData.businessName || '',              // AA
+      formData.businessCategory || '',          // AB
+      formData.businessMobile || '',            // AC
+      formData.businessEmail || '',             // AD
+      formData.businessAddress || '',           // AE
+      formData.businessArea || '',              // AF
+      formData.businessCity || '',              // AG
+      formData.businessState || '',             // AH
+      formData.businessPincode || '',           // AI
+      formData.gstNumber || '',                 // AJ
+      formData.consentMarketing || 'no',        // AK
+      formData.consentWhatsApp || 'no',         // AL
+      formData.consentTerms || 'no',            // AM
+      formData.referralCode || '',              // AN
+      `${formData.firstName || ''} ${formData.lastName || ''} - ${formData.mobile || ''}`.trim() // AO
     ];
-
-    if (customer.exists) {
-      // ✅ PROBLEM 1: Update same row (not new row)
-      if (customer.hasFormData) {
-        // ✅ PROBLEM 2: Already registered - reject
-        console.log(`⚠️ Customer already registered: ${customer.firstName} ${customer.lastName}`);
-        return {
-          success: false,
-          alreadyRegistered: true,
-          customerName: `${customer.firstName} ${customer.lastName}`.trim(),
-          message: 'Customer already registered'
-        };
-      } else {
-        // Number exists but no form data - update same row
-        await sheet.updateRow(customer.rowNumber, rowData);
-        console.log(`✅ Updated row ${customer.rowNumber} for: ${formData.firstName} ${formData.lastName}`);
-        return { success: true };
+    
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!B${rowNumber}:AO${rowNumber}`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [rowData]
       }
-    } else {
-      // New customer - append new row
-      await sheet.appendRow(rowData);
-      console.log(`✅ New registration: ${formData.firstName} ${formData.lastName}`);
-      return { success: true };
-    }
-
+    });
+    
+    console.log(`✅ Updated row ${rowNumber} with form data`);
+    return { success: true, rowNumber, action: 'updated' };
   } catch (error) {
-    console.error('❌ Google Sheets error:', error);
+    console.error('❌ Error updating row:', error.message);
     throw error;
   }
 };
 
-module.exports = { appendFormData };
+// ✅ Create new row (A:AO)
+const createNewRow = async (formData) => {
+  try {
+    const auth = getGoogleSheetsAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    
+    const rowData = [
+      formData.whatsapp || formData.mobile || '', // A - WhatsApp Number
+      formData.gender || '',                    // B
+      formData.mobile || '',                    // C
+      formData.whatsapp || formData.mobile || '', // D
+      formData.dob || '',                       // E
+      formData.anniversary || '',               // F
+      formData.ageGroup || '',                  // G
+      formData.sourceOfReferral || '',          // H
+      formData.houseNo || '',                   // I
+      formData.building || '',                  // J
+      formData.street || '',                    // K
+      formData.area || '',                      // L
+      formData.country || 'IN',                 // M
+      formData.state || '',                     // N
+      formData.city || '',                      // O
+      formData.pincode || '',                   // P
+      formData.landmark || '',                  // Q
+      formData.delHouseNo || '',                // R
+      formData.delBuilding || '',               // S
+      formData.delStreet || '',                 // T
+      formData.delArea || '',                   // U
+      formData.delCountry || '',                // V
+      formData.delCity || '',                   // W
+      formData.delPincode || '',                // X
+      formData.delLandmark || '',               // Y
+      formData.customerType || 'Retail',        // Z
+      formData.businessName || '',              // AA
+      formData.businessCategory || '',          // AB
+      formData.businessMobile || '',            // AC
+      formData.businessEmail || '',             // AD
+      formData.businessAddress || '',           // AE
+      formData.businessArea || '',              // AF
+      formData.businessCity || '',              // AG
+      formData.businessState || '',             // AH
+      formData.businessPincode || '',           // AI
+      formData.gstNumber || '',                 // AJ
+      formData.consentMarketing || 'no',        // AK
+      formData.consentWhatsApp || 'no',         // AL
+      formData.consentTerms || 'no',            // AM
+      formData.referralCode || '',              // AN
+      `${formData.firstName || ''} ${formData.lastName || ''} - ${formData.mobile || ''}`.trim() // AO
+    ];
+    
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A:AO`,
+      valueInputOption: 'RAW',
+      resource: {
+        values: [rowData]
+      }
+    });
+    
+    console.log('✅ Created new row with form data');
+    return { success: true, action: 'created' };
+  } catch (error) {
+    console.error('❌ Error creating row:', error.message);
+    throw error;
+  }
+};
+
+// ✅ Main function: Match & Update or Create
+exports.appendFormData = async (formData) => {
+  try {
+    const whatsappNumber = formData.whatsapp || formData.mobile;
+    
+    if (!whatsappNumber) {
+      throw new Error('WhatsApp or Mobile number required');
+    }
+    
+    console.log(`🔍 Checking for WhatsApp number: ${whatsappNumber}`);
+    
+    // Find row in Column A
+    const rowNumber = await findRowByWhatsApp(whatsappNumber);
+    
+    if (rowNumber) {
+      // Match found - Update existing row
+      console.log(`✅ Match found at row ${rowNumber} - Updating...`);
+      return await updateExistingRow(rowNumber, formData);
+    } else {
+      // No match - Create new row
+      console.log('❌ No match found - Creating new row...');
+      return await createNewRow(formData);
+    }
+  } catch (error) {
+    console.error('❌ Google Sheets error:', error.message);
+    throw error;
+  }
+};

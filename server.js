@@ -1,21 +1,41 @@
-require('dotenv').config();
 const express = require('express');
-const helmet = require('helmet');
 const cors = require('cors');
+require('dotenv').config();
+
 const formRoutes = require('./routes/formRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 
-app.use(helmet());
+// Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/api', formRoutes);
+app.use(express.urlencoded({ extended: true }));
 
+// Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'AJewelBot v2 API is running' });
+  res.json({
+    status: 'AJewelBot v2 API is running',
+    timestamp: new Date().toISOString()
+  });
 });
 
+// Routes
+app.use('/api', formRoutes);
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: err.message
+  });
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`AJewelBot v2 running on port ${PORT}`);
+  console.log(`✅ AJewelBot v2 Backend running on port ${PORT}`);
+  console.log(`📊 Google Sheets: Connected`);
+  console.log(`🛍️ Shopify: ${process.env.SHOPIFY_STORE}`);
 });
