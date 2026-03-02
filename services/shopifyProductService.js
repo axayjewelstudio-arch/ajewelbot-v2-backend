@@ -11,10 +11,9 @@ const shopifyAPI = axios.create({
   }
 });
 
-// ✅ Fetch all products
-exports.getAllProducts = async (limit = 250) => {
+exports.getAllProducts = async () => {
   try {
-    const response = await shopifyAPI.get(`/products.json?limit=${limit}`);
+    const response = await shopifyAPI.get('/products.json?limit=250');
     return response.data.products;
   } catch (error) {
     console.error('Error fetching products:', error.message);
@@ -22,7 +21,6 @@ exports.getAllProducts = async (limit = 250) => {
   }
 };
 
-// ✅ Fetch products by collection
 exports.getProductsByCollection = async (collectionId) => {
   try {
     const response = await shopifyAPI.get(`/collections/${collectionId}/products.json`);
@@ -33,7 +31,6 @@ exports.getProductsByCollection = async (collectionId) => {
   }
 };
 
-// ✅ Fetch product by ID
 exports.getProductById = async (productId) => {
   try {
     const response = await shopifyAPI.get(`/products/${productId}.json`);
@@ -44,7 +41,6 @@ exports.getProductById = async (productId) => {
   }
 };
 
-// ✅ Get all collections
 exports.getAllCollections = async () => {
   try {
     const response = await shopifyAPI.get('/custom_collections.json');
@@ -55,7 +51,6 @@ exports.getAllCollections = async () => {
   }
 };
 
-// ✅ Search products
 exports.searchProducts = async (query) => {
   try {
     const response = await shopifyAPI.get(`/products.json?title=${encodeURIComponent(query)}`);
@@ -66,28 +61,16 @@ exports.searchProducts = async (query) => {
   }
 };
 
-// ✅ Format product for WhatsApp display
 exports.formatProductForWhatsApp = (product) => {
   const variant = product.variants[0];
   return {
     id: product.id,
+    variantId: variant.id,
     title: product.title,
     price: `₹${variant.price}`,
     image: product.image?.src || '',
     sku: variant.sku || '',
     available: variant.inventory_quantity > 0,
-    description: product.body_html?.replace(/<[^>]*>/g, '').substring(0, 200) || '',
-    variantId: variant.id
+    description: product.body_html?.replace(/<[^>]*>/g, '').substring(0, 200) || ''
   };
-};
-
-// ✅ Get products by tag
-exports.getProductsByTag = async (tag) => {
-  try {
-    const response = await shopifyAPI.get(`/products.json?product_type=${encodeURIComponent(tag)}`);
-    return response.data.products;
-  } catch (error) {
-    console.error('Error fetching products by tag:', error.message);
-    throw error;
-  }
 };

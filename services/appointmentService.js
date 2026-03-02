@@ -1,78 +1,92 @@
-const axios = require('axios');
-const { logger } = require('../utils/logger');
+const googleSheetsService = require('./googleSheetsService');
+const emailService = require('./emailService');
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const WHATSAPP_PHONE_ID = process.env.WHATSAPP_PHONE_ID;
+const TIME_SLOTS = [
+  '10:00 AM',
+  '12:00 PM',
+  '2:00 PM',
+  '4:00 PM'
+];
 
-// Send appointment confirmation
-exports.sendAppointmentConfirmation = async (customerPhone, appointmentData) => {
+exports.getAvailableDates = () => {
+  const dates = [];
+  const today = new Date();
+  
+  for (let i = 1; i <= 30; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    
+    if (date.getDay() !== 0) {
+      dates.push(date.toISOString().split('T')[0]);
+    }
+  }
+  
+  return dates;
+};
+
+exports.getAvailableTimeSlots = () => {
+  return TIME_SLOTS;
+};
+
+exports.bookAppointment = async (appointmentData) => {
   try {
-    const { customerName, date, time, service } = appointmentData;
-    
-    const message = `✅ *Appointment Confirmed*\n\n` +
-                   `Hello ${customerName}! 💎\n\n` +
-                   `Your appointment has been confirmed:\n\n` +
-                   `📅 Date: ${date}\n` +
-                   `🕐 Time: ${time}\n` +
-                   `💍 Service: ${service}\n\n` +
-                   `We look forward to seeing you at A Jewel Studio!\n\n` +
-                   `For any changes, please contact us.`;
-    
-    const url = `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_ID}/messages`;
-    const payload = {
-      messaging_product: 'whatsapp',
-      to: customerPhone,
-      type: 'text',
-      text: { body: message }
-    };
-    
-    await axios.post(url, payload, {
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
+    const result = await googleSheetsService.createAppointment({
+      customerName: appointmentData.customerName,
+      customerEmail: appointmentData.customerEmail,
+      customerPhone: appointmentData.customerPhone,
+      storeId: appointmentData.storeId || '',
+      storeName: appointmentData.storeName || '',
+      appointmentDate: appointmentData.date,
+      appointmentTime: appointmentData.time,
+      serviceType: appointmentData.serviceType || 'Customisation Consultation',
+      productCategory: appointmentData.productCategory || '',
+      notes: appointmentData.notes || ''
     });
     
-    logger.info('Appointment confirmation sent', { customerPhone });
-    return true;
-    
+    console.log('✅ Appointment booked:', result.appointmentId);
+    return {
+      success: true,
+      appointmentId: result.appointmentId,
+      date: appointmentData.date,
+      time: appointmentData.time
+    };
   } catch (error) {
-    logger.error('Send appointment error', { error: error.message });
+    console.error('❌ Appointment booking error:', error.message);
     throw error;
   }
 };
 
-// Send appointment reminder
-exports.sendAppointmentReminder = async (customerPhone, appointmentData) => {
+exports.confirmAppointment = async (appointmentId, appointmentData) => {
   try {
-    const { customerName, date, time } = appointmentData;
-    
-    const message = `🔔 *Appointment Reminder*\n\n` +
-                   `Hello ${customerName}!\n\n` +
-                   `This is a reminder for your appointment:\n\n` +
-                   `📅 Tomorrow at ${time}\n\n` +
-                   `See you soon at A Jewel Studio! 💎`;
-    
-    const url = `https://graph.facebook.com/v18.0/${WHATSAPP_PHONE_ID}/messages`;
-    const payload = {
-      messaging_product: 'whatsapp',
-      to: customerPhone,
-      type: 'text',
-      text: { body: message }
-    };
-    
-    await axios.post(url, payload, {
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
+    await emailService.sendAppointmentEmail({
+      customerName: appointmentData.customerName,
+      customerEmail: appointmentData.customerEmail,
+      date: appointmentData.date,
+      time: appointmentData.time,
+      type: appointmentData.type || 'Customisation Consultation'
     });
     
-    logger.info('Appointment reminder sent', { customerPhone });
-    return true;
-    
+    console.log('✅ Appointment confirmed:', appointmentId);
+    return { success: true };
   } catch (error) {
-    logger.error('Send reminder error', { error: error.message });
+    console.error('❌ Appointment confirmation error:', error.message);
+    throw error;
+  }
+};
+
+exports.rescheduleAppointment = async (appointmentId, oldData, newData) => {
+  try {
+    await emailService.sendAppointmentRescheduledEmail({
+      customerName: oldData.customerName,
+      customerEmail: oldData.customerEmail,
+      oldDate: oldData.date,
+      oldTime: oldData.time
+    });
+    
+    console.log('✅ Appointment rescheduled:', appointmentId);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Appointment reschedule error:', error.message);
     throw error;
   }
 };

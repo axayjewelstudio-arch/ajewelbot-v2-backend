@@ -1,7 +1,6 @@
 const NodeCache = require('node-cache');
-const cache = new NodeCache({ stdTTL: 3600 }); // 1 hour cache
+const cache = new NodeCache({ stdTTL: 3600 });
 
-// ✅ Get cart by customer phone
 exports.getCart = (customerPhone) => {
   let cart = cache.get(customerPhone);
   if (!cart) {
@@ -16,11 +15,9 @@ exports.getCart = (customerPhone) => {
   return cart;
 };
 
-// ✅ Add item to cart
 exports.addToCart = (customerPhone, product) => {
   const cart = exports.getCart(customerPhone);
   
-  // Check if item already exists
   const existingItem = cart.items.find(item => item.id === product.id);
   
   if (existingItem) {
@@ -37,7 +34,6 @@ exports.addToCart = (customerPhone, product) => {
     });
   }
   
-  // Recalculate total
   cart.total = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   cart.updatedAt = new Date().toISOString();
   
@@ -45,7 +41,6 @@ exports.addToCart = (customerPhone, product) => {
   return cart;
 };
 
-// ✅ Remove item from cart
 exports.removeFromCart = (customerPhone, productId) => {
   const cart = exports.getCart(customerPhone);
   cart.items = cart.items.filter(item => item.id !== productId);
@@ -55,7 +50,6 @@ exports.removeFromCart = (customerPhone, productId) => {
   return cart;
 };
 
-// ✅ Update quantity
 exports.updateQuantity = (customerPhone, productId, quantity) => {
   const cart = exports.getCart(customerPhone);
   const item = cart.items.find(item => item.id === productId);
@@ -73,13 +67,11 @@ exports.updateQuantity = (customerPhone, productId, quantity) => {
   return cart;
 };
 
-// ✅ Clear cart
 exports.clearCart = (customerPhone) => {
   cache.del(customerPhone);
   return { items: [], total: 0 };
 };
 
-// ✅ Format cart for WhatsApp display
 exports.formatCartForWhatsApp = (cart) => {
   if (!cart.items.length) {
     return 'Your cart is empty.';
@@ -98,7 +90,6 @@ exports.formatCartForWhatsApp = (cart) => {
   return message;
 };
 
-// ✅ Get cart item count
 exports.getCartItemCount = (customerPhone) => {
   const cart = exports.getCart(customerPhone);
   return cart.items.reduce((count, item) => count + item.quantity, 0);

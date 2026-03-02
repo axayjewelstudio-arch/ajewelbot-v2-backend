@@ -1,15 +1,25 @@
 const Razorpay = require('razorpay');
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-});
+let razorpay = null;
 
-// ✅ Create payment order
+if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+  console.log('✅ Razorpay initialized');
+} else {
+  console.log('⚠️ Razorpay credentials not found - payment features disabled');
+}
+
 exports.createPaymentOrder = async (orderData) => {
+  if (!razorpay) {
+    throw new Error('Razorpay not configured');
+  }
+  
   try {
     const options = {
-      amount: Math.round(orderData.amount * 100), // Amount in paise
+      amount: Math.round(orderData.amount * 100),
       currency: 'INR',
       receipt: orderData.orderId,
       notes: {
@@ -36,8 +46,11 @@ exports.createPaymentOrder = async (orderData) => {
   }
 };
 
-// ✅ Verify payment signature
 exports.verifyPaymentSignature = (razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
+  if (!razorpay) {
+    throw new Error('Razorpay not configured');
+  }
+  
   try {
     const crypto = require('crypto');
     const text = razorpayOrderId + '|' + razorpayPaymentId;
@@ -53,71 +66,11 @@ exports.verifyPaymentSignature = (razorpayOrderId, razorpayPaymentId, razorpaySi
   }
 };
 
-// ✅ Fetch payment details
-exports.getPaymentDetails = async (paymentId) => {
-  try {
-    const payment = await razorpay.payments.fetch(paymentId);
-    return {
-      success: true,
-      payment: {
-        id: payment.id,
-        amount: payment.amount / 100,
-        currency: payment.currency,
-        status: payment.status,
-        method: payment.method,
-        email: payment.email,
-        contact: payment.contact,
-        createdAt: new Date(payment.created_at * 1000).toISOString()
-      }
-    };
-  } catch (error) {
-    console.error('❌ Error fetching payment:', error.message);
-    throw error;
-  }
-};
-
-// ✅ Create refund
-exports.createRefund = async (paymentId, amount, notes = {}) => {
-  try {
-    const refund = await razorpay.payments.refund(paymentId, {
-      amount: Math.round(amount * 100), // Amount in paise
-      notes: notes
-    });
-    
-    console.log('✅ Refund created:', refund.id);
-    return {
-      success: true,
-      refundId: refund.id,
-      amount: refund.amount / 100,
-      status: refund.status
-    };
-  } catch (error) {
-    console.error('❌ Refund creation error:', error.message);
-    throw error;
-  }
-};
-
-// ✅ Get refund status
-exports.getRefundStatus = async (refundId) => {
-  try {
-    const refund = await razorpay.refunds.fetch(refundId);
-    return {
-      success: true,
-      refund: {
-        id: refund.id,
-        amount: refund.amount / 100,
-        status: refund.status,
-        createdAt: new Date(refund.created_at * 1000).toISOString()
-      }
-    };
-  } catch (error) {
-    console.error('❌ Error fetching refund:', error.message);
-    throw error;
-  }
-};
-
-// ✅ Generate payment link
 exports.generatePaymentLink = (razorpayOrderId, amount, customerData) => {
+  if (!razorpay) {
+    throw new Error('Razorpay not configured');
+  }
+  
   const baseUrl = 'https://api.razorpay.com/v1/checkout/embedded';
   
   return {

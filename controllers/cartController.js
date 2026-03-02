@@ -1,7 +1,6 @@
 const cartService = require('../services/cartService');
 const shopifyProductService = require('../services/shopifyProductService');
 
-// ✅ Get cart
 exports.getCart = async (req, res) => {
   try {
     const { customerPhone } = req.params;
@@ -19,17 +18,14 @@ exports.getCart = async (req, res) => {
   }
 };
 
-// ✅ Add to cart
 exports.addToCart = async (req, res) => {
   try {
     const { customerPhone } = req.params;
     const { productId } = req.body;
     
-    // Fetch product from Shopify
     const product = await shopifyProductService.getProductById(productId);
     const formatted = shopifyProductService.formatProductForWhatsApp(product);
     
-    // Add to cart
     const cart = cartService.addToCart(customerPhone, formatted);
     
     res.json({
@@ -44,7 +40,6 @@ exports.addToCart = async (req, res) => {
   }
 };
 
-// ✅ Remove from cart
 exports.removeFromCart = async (req, res) => {
   try {
     const { customerPhone, productId } = req.params;
@@ -61,7 +56,6 @@ exports.removeFromCart = async (req, res) => {
   }
 };
 
-// ✅ Update quantity
 exports.updateQuantity = async (req, res) => {
   try {
     const { customerPhone, productId } = req.params;
@@ -80,7 +74,6 @@ exports.updateQuantity = async (req, res) => {
   }
 };
 
-// ✅ Clear cart
 exports.clearCart = async (req, res) => {
   try {
     const { customerPhone } = req.params;

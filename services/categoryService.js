@@ -1,4 +1,3 @@
-// ✅ Predefined category structure
 const CATEGORIES = {
   retail: {
     'Face Jewellery': {
@@ -94,4 +93,17 @@ exports.getSubcategories = (category, customerType = 'Retail') => {
 exports.getStyles = (category, subcategory, customerType = 'Retail') => {
   const categories = CATEGORIES[customerType.toLowerCase()] || CATEGORIES.retail;
   return categories[category]?.subcategories[subcategory] || [];
+};
+
+exports.mapShopifyCollection = (collectionTitle) => {
+  const mapping = {
+    'Face Jewellery': 'Face Jewellery',
+    'Earrings': 'Face Jewellery',
+    'Necklaces': 'Neck and Collar Jewellery',
+    'Rings': 'Hand and Wrist Jewellery',
+    'Bridal': 'Bridal Collection',
+    'Gifts': 'Gifting and Sets'
+  };
+  
+  return mapping[collectionTitle] || collectionTitle;
 };

@@ -1,6 +1,5 @@
 const appointmentService = require('../services/appointmentService');
 
-// ✅ Get available dates
 exports.getAvailableDates = async (req, res) => {
   try {
     const dates = appointmentService.getAvailableDates();
@@ -15,7 +14,6 @@ exports.getAvailableDates = async (req, res) => {
   }
 };
 
-// ✅ Get available time slots
 exports.getAvailableTimeSlots = async (req, res) => {
   try {
     const slots = appointmentService.getAvailableTimeSlots();
@@ -30,7 +28,6 @@ exports.getAvailableTimeSlots = async (req, res) => {
   }
 };
 
-// ✅ Book appointment
 exports.bookAppointment = async (req, res) => {
   try {
     const appointmentData = req.body;
@@ -50,7 +47,6 @@ exports.bookAppointment = async (req, res) => {
   }
 };
 
-// ✅ Confirm appointment
 exports.confirmAppointment = async (req, res) => {
   try {
     const { appointmentId, appointmentData } = req.body;
@@ -67,7 +63,6 @@ exports.confirmAppointment = async (req, res) => {
   }
 };
 
-// ✅ Reschedule appointment
 exports.rescheduleAppointment = async (req, res) => {
   try {
     const { appointmentId, oldData, newData } = req.body;

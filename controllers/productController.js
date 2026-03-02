@@ -1,7 +1,6 @@
 const shopifyProductService = require('../services/shopifyProductService');
 const categoryService = require('../services/categoryService');
 
-// ✅ Get all products
 exports.getAllProducts = async (req, res) => {
   try {
     const products = await shopifyProductService.getAllProducts();
@@ -18,7 +17,6 @@ exports.getAllProducts = async (req, res) => {
   }
 };
 
-// ✅ Get product by ID
 exports.getProductById = async (req, res) => {
   try {
     const product = await shopifyProductService.getProductById(req.params.id);
@@ -34,7 +32,6 @@ exports.getProductById = async (req, res) => {
   }
 };
 
-// ✅ Search products
 exports.searchProducts = async (req, res) => {
   try {
     const { query } = req.query;
@@ -52,7 +49,6 @@ exports.searchProducts = async (req, res) => {
   }
 };
 
-// ✅ Get categories
 exports.getCategories = async (req, res) => {
   try {
     const { customerType } = req.query;
@@ -68,7 +64,6 @@ exports.getCategories = async (req, res) => {
   }
 };
 
-// ✅ Get subcategories
 exports.getSubcategories = async (req, res) => {
   try {
     const { category, customerType } = req.query;
@@ -84,7 +79,6 @@ exports.getSubcategories = async (req, res) => {
   }
 };
 
-// ✅ Get styles
 exports.getStyles = async (req, res) => {
   try {
     const { category, subcategory, customerType } = req.query;

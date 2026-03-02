@@ -1,6 +1,5 @@
 const orderService = require('../services/orderService');
 
-// ✅ Create order and initiate payment
 exports.createOrder = async (req, res) => {
   try {
     const { customerPhone, customerData } = req.body;
@@ -22,7 +21,6 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// ✅ Confirm payment
 exports.confirmPayment = async (req, res) => {
   try {
     const { orderId, paymentData } = req.body;
@@ -41,7 +39,6 @@ exports.confirmPayment = async (req, res) => {
   }
 };
 
-// ✅ Mark order as ready
 exports.markOrderReady = async (req, res) => {
   try {
     const { orderId, customerData } = req.body;

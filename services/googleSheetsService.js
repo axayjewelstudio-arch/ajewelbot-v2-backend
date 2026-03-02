@@ -1,317 +1,433 @@
 const { google } = require('googleapis');
-const { logger } = require('../utils/logger');
 
-const getGoogleSheet = async () => {
+const SPREADSHEET_ID = '1w-4Zi65AqsQZFJIr1GLrDrW9BJNez8Wtr-dTL8oBLbs';
+
+const getGoogleSheetsAuth = () => {
+  return new google.auth.GoogleAuth({
+    credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  });
+};
+
+const getSheets = async () => {
+  const auth = getGoogleSheetsAuth();
+  return google.sheets({ version: 'v4', auth });
+};
+
+// ═══════════════════════════════════════════════════════════
+// REGISTRATIONS SHEET (A:AQ - 43 columns)
+// ═══════════════════════════════════════════════════════════
+
+const findRowByWhatsApp = async (whatsappNumber) => {
   try {
-    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    const sheets = await getSheets();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Registrations!A:A'
     });
     
-    const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
-    
-    return {
-      appendRow: async (sheetName, values) => {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId,
-          range: `${sheetName}!A:Z`,
-          valueInputOption: 'RAW',
-          resource: { values: [values] }
-        });
-      },
-      
-      findRowByPhone: async (phone) => {
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: 'Registrations!A:A'
-        });
-        
-        const rows = response.data.values || [];
-        const rowIndex = rows.findIndex(row => row[0] === phone);
-        return rowIndex >= 0 ? rowIndex + 1 : null;
-      },
-      
-      updateRow: async (sheetName, rowIndex, values) => {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `${sheetName}!B${rowIndex}:AQ${rowIndex}`,
-          valueInputOption: 'RAW',
-          resource: { values: [values] }
-        });
+    const rows = result.data.values || [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === whatsappNumber) {
+        return i + 1;
       }
-    };
+    }
+    return null;
   } catch (error) {
-    logger.error('Google Sheets error', { error: error.message });
+    console.error('❌ Error finding row:', error.message);
+    return null;
+  }
+};
+
+const updateExistingRow = async (rowNumber, formData) => {
+  try {
+    const sheets = await getSheets();
+    const rowData = [
+      formData.firstName || '',
+      formData.lastName || '',
+      formData.gender || '',
+      formData.mobile || '',
+      formData.whatsapp || formData.mobile || '',
+      formData.dob || '',
+      formData.anniversary || '',
+      formData.ageGroup || '',
+      formData.sourceOfReferral || '',
+      formData.houseNo || '',
+      formData.building || '',
+      formData.street || '',
+      formData.area || '',
+      formData.country || 'India',
+      formData.state || '',
+      formData.city || '',
+      formData.pincode || '',
+      formData.landmark || '',
+      formData.delHouseNo || '',
+      formData.delBuilding || '',
+      formData.delStreet || '',
+      formData.delArea || '',
+      formData.delCountry || '',
+      formData.delCity || '',
+      formData.delPincode || '',
+      formData.delLandmark || '',
+      formData.customerType || 'Retail',
+      formData.businessName || '',
+      formData.businessCategory || '',
+      formData.businessMobile || '',
+      formData.businessEmail || '',
+      formData.businessAddress || '',
+      formData.businessArea || '',
+      formData.businessCity || '',
+      formData.businessState || '',
+      formData.businessPincode || '',
+      formData.gstNumber || '',
+      formData.consentMarketing || 'no',
+      formData.consentWhatsApp || 'no',
+      formData.consentTerms || 'no',
+      formData.referralCode || '',
+      `${formData.firstName || ''} ${formData.lastName || ''} - ${new Date().toISOString()}`.trim()
+    ];
+    
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Registrations!B${rowNumber}:AQ${rowNumber}`,
+      valueInputOption: 'RAW',
+      resource: { values: [rowData] }
+    });
+    
+    console.log(`✅ Updated row ${rowNumber}`);
+    return { success: true, rowNumber, action: 'updated' };
+  } catch (error) {
+    console.error('❌ Error updating row:', error.message);
     throw error;
   }
 };
 
-// ==================== SHEET 1: REGISTRATIONS ====================
-
-const appendFormData = async (formData) => {
+const createNewRow = async (formData) => {
   try {
-    const sheet = await getGoogleSheet();
-    
-    // Check if phone exists in Column A
-    const existingRow = await sheet.findRowByPhone(formData.mobile);
-    
-    // Data for columns B to AQ
+    const sheets = await getSheets();
     const rowData = [
-      formData.firstName || '',                 // B - First Name
-      formData.lastName || '',                  // C - Last Name
-      formData.gender || '',                    // D - Gender
-      formData.mobile || '',                    // E - Mobile
-      formData.mobile || '',                    // F - Whatsapp
-      formData.dob || '',                       // G - Dob
-      formData.anniversary || '',               // H - Anniversary
-      formData.ageGroup || '',                  // I - Age_group
-      formData.sourceOfReferral || '',          // J - Referral_source
-      formData.houseNo || '',                   // K - House_no
-      formData.building || '',                  // L - Building
-      formData.street || '',                    // M - Street
-      formData.area || '',                      // N - Area
-      formData.country || 'IN',                 // O - Country
-      formData.state || '',                     // P - State
-      formData.city || '',                      // Q - City
-      formData.pincode || '',                   // R - Pincode
-      formData.landmark || '',                  // S - Landmark
-      formData.delHouseNo || '',                // T - Del_house_no
-      formData.delBuilding || '',               // U - Del_building
-      formData.delStreet || '',                 // V - Del_street
-      formData.delArea || '',                   // W - Del_area
-      formData.delCountry || '',                // X - Delivery_country
-      formData.delCity || '',                   // Y - Delivery_city
-      formData.delPincode || '',                // Z - Delivery_pincode
-      formData.delLandmark || '',               // AA - Del_landmark
-      formData.customerType || 'Retail',        // AB - Customer_type
-      formData.businessName || '',              // AC - Business_name
-      formData.businessCategory || '',          // AD - Business_category
-      formData.businessMobile || '',            // AE - Business_mobile
-      formData.businessEmail || '',             // AF - Business_email
-      formData.businessAddress || '',           // AG - Business_address
-      formData.businessArea || '',              // AH - Business_area
-      formData.businessCity || '',              // AI - Business_city
-      formData.businessState || '',             // AJ - Business_state
-      formData.businessPincode || '',           // AK - Business_pincode
-      formData.gstNumber || '',                 // AL - Gst_number
-      formData.consentMarketing || 'no',        // AM - Consent_marketing
-      formData.consentWhatsApp || 'no',         // AN - Consent_whatsapp
-      formData.consentTerms || 'no',            // AO - Consent_terms
-      formData.referralCode || '',              // AP - Referral_code
-      `${formData.firstName || ''} ${formData.lastName || ''} - ${new Date().toISOString()}`.trim() // AQ - Note
+      formData.whatsapp || formData.mobile || '',
+      formData.firstName || '',
+      formData.lastName || '',
+      formData.gender || '',
+      formData.mobile || '',
+      formData.whatsapp || formData.mobile || '',
+      formData.dob || '',
+      formData.anniversary || '',
+      formData.ageGroup || '',
+      formData.sourceOfReferral || '',
+      formData.houseNo || '',
+      formData.building || '',
+      formData.street || '',
+      formData.area || '',
+      formData.country || 'India',
+      formData.state || '',
+      formData.city || '',
+      formData.pincode || '',
+      formData.landmark || '',
+      formData.delHouseNo || '',
+      formData.delBuilding || '',
+      formData.delStreet || '',
+      formData.delArea || '',
+      formData.delCountry || '',
+      formData.delCity || '',
+      formData.delPincode || '',
+      formData.delLandmark || '',
+      formData.customerType || 'Retail',
+      formData.businessName || '',
+      formData.businessCategory || '',
+      formData.businessMobile || '',
+      formData.businessEmail || '',
+      formData.businessAddress || '',
+      formData.businessArea || '',
+      formData.businessCity || '',
+      formData.businessState || '',
+      formData.businessPincode || '',
+      formData.gstNumber || '',
+      formData.consentMarketing || 'no',
+      formData.consentWhatsApp || 'no',
+      formData.consentTerms || 'no',
+      formData.referralCode || '',
+      `${formData.firstName || ''} ${formData.lastName || ''} - ${new Date().toISOString()}`.trim()
     ];
     
-    if (existingRow) {
-      await sheet.updateRow('Registrations', existingRow, rowData);
-      logger.info('Registrations sheet updated (B:AQ)', { row: existingRow });
-    } else {
-      const fullRow = [formData.mobile, ...rowData];
-      await sheet.appendRow('Registrations', fullRow);
-      logger.info('Registrations sheet new row (A:AQ)');
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Registrations!A:AQ',
+      valueInputOption: 'RAW',
+      resource: { values: [rowData] }
+    });
+    
+    console.log('✅ Created new row');
+    return { success: true, action: 'created' };
+  } catch (error) {
+    console.error('❌ Error creating row:', error.message);
+    throw error;
+  }
+};
+
+exports.appendFormData = async (formData) => {
+  try {
+    const whatsappNumber = formData.whatsapp || formData.mobile;
+    if (!whatsappNumber) {
+      throw new Error('WhatsApp or Mobile number required');
     }
     
-    return true;
+    console.log(`🔍 Checking for WhatsApp number: ${whatsappNumber}`);
+    const rowNumber = await findRowByWhatsApp(whatsappNumber);
+    
+    if (rowNumber) {
+      console.log(`✅ Match found at row ${rowNumber} - Updating...`);
+      return await updateExistingRow(rowNumber, formData);
+    } else {
+      console.log('❌ No match found - Creating new row...');
+      return await createNewRow(formData);
+    }
   } catch (error) {
-    logger.error('Registrations sheet error', { error: error.message });
+    console.error('❌ Google Sheets error:', error.message);
     throw error;
   }
 };
 
-// ==================== SHEET 2: PARTNER STORES ====================
+// ═══════════════════════════════════════════════════════════
+// ORDERS SHEET (A:S - 19 columns)
+// ═══════════════════════════════════════════════════════════
 
-const addPartnerStore = async (storeData) => {
+exports.createOrder = async (orderData) => {
   try {
-    const sheet = await getGoogleSheet();
-    
-    const rowData = [
-      storeData.storeId || '',                  // A - Store ID
-      storeData.storeName || '',                // B - Store Name
-      storeData.ownerName || '',                // C - Owner Name
-      storeData.email || '',                    // D - Email
-      storeData.phone || '',                    // E - Phone
-      storeData.address || '',                  // F - Address
-      storeData.city || '',                     // G - City
-      storeData.state || '',                    // H - State
-      storeData.pincode || '',                  // I - Pincode
-      storeData.gstNumber || '',                // J - GST Number
-      storeData.commission || '15%',            // K - Commission %
-      storeData.status || 'Active',             // L - Status
-      new Date().toISOString().split('T')[0],   // M - Onboarding Date
-      '',                                       // N - Last Order Date
-      0,                                        // O - Total Orders
-      0,                                        // P - Total Revenue
-      0,                                        // Q - Outstanding Balance
-      storeData.notes || ''                     // R - Notes
+    const sheets = await getSheets();
+    const row = [
+      orderData.orderId || '',
+      orderData.shopifyOrderId || '',
+      new Date().toISOString(),
+      orderData.storeId || '',
+      orderData.storeName || '',
+      orderData.customerName || '',
+      orderData.customerEmail || '',
+      orderData.customerPhone || '',
+      orderData.productSKU || '',
+      orderData.productName || '',
+      orderData.quantity || 1,
+      orderData.unitPrice || 0,
+      orderData.totalAmount || 0,
+      orderData.commissionAmount || 0,
+      orderData.paymentStatus || 'Pending',
+      orderData.fulfillmentStatus || 'Pending',
+      orderData.trackingNumber || '',
+      orderData.deliveryDate || '',
+      orderData.notes || ''
     ];
     
-    await sheet.appendRow('Partner Stores', rowData);
-    logger.info('Partner store added', { storeId: storeData.storeId });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Orders!A:S',
+      valueInputOption: 'RAW',
+      resource: { values: [row] }
+    });
     
-    return true;
+    console.log('✅ Order created in sheet');
+    return { success: true };
   } catch (error) {
-    logger.error('Partner store error', { error: error.message });
+    console.error('❌ Error creating order:', error.message);
     throw error;
   }
 };
 
-// ==================== SHEET 3: ORDERS ====================
-
-const logOrder = async (orderData) => {
+exports.updateOrderStatus = async (orderId, status, fulfillmentStatus) => {
   try {
-    const sheet = await getGoogleSheet();
+    const sheets = await getSheets();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Orders!A:A'
+    });
     
-    const rowData = [
-      orderData.orderId || '',                  // A - Order ID
-      orderData.shopifyOrderId || '',           // B - Shopify Order ID
-      new Date().toISOString().split('T')[0],   // C - Order Date
-      orderData.storeId || '',                  // D - Store ID
-      orderData.storeName || '',                // E - Store Name
-      orderData.customerName || '',             // F - Customer Name
-      orderData.customerEmail || '',            // G - Customer Email
-      orderData.customerPhone || '',            // H - Customer Phone
-      orderData.productSku || '',               // I - Product SKU
-      orderData.productName || '',              // J - Product Name
-      orderData.quantity || 1,                  // K - Quantity
-      orderData.unitPrice || 0,                 // L - Unit Price
-      orderData.totalAmount || 0,               // M - Total Amount
-      orderData.commissionAmount || 0,          // N - Commission Amount
-      orderData.paymentStatus || 'Pending',     // O - Payment Status
-      orderData.fulfillmentStatus || 'Pending', // P - Fulfillment Status
-      orderData.trackingNumber || '',           // Q - Tracking Number
-      orderData.deliveryDate || '',             // R - Delivery Date
-      orderData.notes || ''                     // S - Notes
+    const rows = result.data.values || [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === orderId) {
+        const rowNumber = i + 1;
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `Orders!O${rowNumber}:P${rowNumber}`,
+          valueInputOption: 'RAW',
+          resource: { values: [[status, fulfillmentStatus]] }
+        });
+        console.log(`✅ Order ${orderId} status updated`);
+        return { success: true };
+      }
+    }
+    return { success: false, message: 'Order not found' };
+  } catch (error) {
+    console.error('❌ Error updating order:', error.message);
+    throw error;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// APPOINTMENTS SHEET (A:R - 18 columns)
+// ═══════════════════════════════════════════════════════════
+
+exports.createAppointment = async (appointmentData) => {
+  try {
+    const sheets = await getSheets();
+    const appointmentId = `APT${Date.now()}`;
+    const row = [
+      appointmentId,
+      appointmentData.customerName || '',
+      appointmentData.customerEmail || '',
+      appointmentData.customerPhone || '',
+      appointmentData.storeId || '',
+      appointmentData.storeName || '',
+      appointmentData.appointmentDate || '',
+      appointmentData.appointmentTime || '',
+      appointmentData.serviceType || 'Consultation',
+      appointmentData.productCategory || '',
+      'Scheduled',
+      appointmentData.assignedStaff || '',
+      appointmentData.notes || '',
+      'No',
+      '',
+      new Date().toISOString(),
+      'No',
+      'No'
     ];
     
-    await sheet.appendRow('Orders', rowData);
-    logger.info('Order logged', { orderId: orderData.orderId });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Appointments!A:R',
+      valueInputOption: 'RAW',
+      resource: { values: [row] }
+    });
     
-    return true;
+    console.log('✅ Appointment created');
+    return { success: true, appointmentId };
   } catch (error) {
-    logger.error('Order log error', { error: error.message });
+    console.error('❌ Error creating appointment:', error.message);
     throw error;
   }
 };
 
-// ==================== SHEET 4: APPOINTMENTS ====================
+// ═══════════════════════════════════════════════════════════
+// PARTNER STORES SHEET (A:R - 18 columns)
+// ═══════════════════════════════════════════════════════════
 
-const logAppointment = async (appointmentData) => {
+exports.getPartnerStoreByCity = async (city) => {
   try {
-    const sheet = await getGoogleSheet();
+    const sheets = await getSheets();
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Partner Stores!A:R'
+    });
     
-    const rowData = [
-      appointmentData.appointmentId || `APT${Date.now()}`, // A - Appointment ID
-      appointmentData.customerName || '',       // B - Customer Name
-      appointmentData.customerEmail || '',      // C - Customer Email
-      appointmentData.customerPhone || '',      // D - Customer Phone
-      appointmentData.storeId || '',            // E - Store ID
-      appointmentData.storeName || 'A Jewel Studio', // F - Store Name
-      appointmentData.appointmentDate || '',    // G - Appointment Date
-      appointmentData.appointmentTime || '',    // H - Appointment Time
-      appointmentData.serviceType || 'Consultation', // I - Service Type
-      appointmentData.productCategory || '',    // J - Product Category
-      appointmentData.status || 'Scheduled',    // K - Status
-      appointmentData.assignedStaff || '',      // L - Assigned Staff
-      appointmentData.notes || '',              // M - Notes
-      appointmentData.followUpRequired || 'No', // N - Follow-up Required
-      appointmentData.followUpDate || '',       // O - Follow-up Date
-      new Date().toISOString().split('T')[0],   // P - Created Date
-      'Yes',                                    // Q - Confirmation Sent
-      'No'                                      // R - Reminder Sent
+    const rows = result.data.values || [];
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][6]?.toLowerCase() === city.toLowerCase() && rows[i][11] === 'Active') {
+        return {
+          storeId: rows[i][0],
+          storeName: rows[i][1],
+          ownerName: rows[i][2],
+          email: rows[i][3],
+          phone: rows[i][4],
+          address: rows[i][5],
+          city: rows[i][6],
+          state: rows[i][7],
+          pincode: rows[i][8],
+          commission: rows[i][10]
+        };
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching partner store:', error.message);
+    return null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// STOCK ALERTS SHEET (A:R - 18 columns)
+// ═══════════════════════════════════════════════════════════
+
+exports.createStockAlert = async (alertData) => {
+  try {
+    const sheets = await getSheets();
+    const alertId = `ALERT${Date.now()}`;
+    const row = [
+      alertId,
+      alertData.productSKU || '',
+      alertData.productName || '',
+      alertData.category || '',
+      alertData.currentStock || 0,
+      alertData.minimumStockLevel || 0,
+      alertData.storeId || '',
+      alertData.storeName || '',
+      new Date().toISOString(),
+      alertData.alertType || 'Low Stock',
+      alertData.reorderQuantity || 0,
+      alertData.supplierName || '',
+      alertData.supplierContact || '',
+      alertData.expectedRestockDate || '',
+      'Pending',
+      alertData.priority || 'Medium',
+      alertData.notes || '',
+      new Date().toISOString()
     ];
     
-    await sheet.appendRow('Appointments', rowData);
-    logger.info('Appointment logged', { appointmentId: appointmentData.appointmentId });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Stock Alerts!A:R',
+      valueInputOption: 'RAW',
+      resource: { values: [row] }
+    });
     
-    return true;
+    console.log('✅ Stock alert created');
+    return { success: true, alertId };
   } catch (error) {
-    logger.error('Appointment log error', { error: error.message });
+    console.error('❌ Error creating stock alert:', error.message);
     throw error;
   }
 };
 
-// ==================== SHEET 5: STOCK ALERTS ====================
+// ═══════════════════════════════════════════════════════════
+// REFUNDS SHEET (A:T - 20 columns)
+// ═══════════════════════════════════════════════════════════
 
-const logStockAlert = async (alertData) => {
+exports.createRefund = async (refundData) => {
   try {
-    const sheet = await getGoogleSheet();
-    
-    const rowData = [
-      alertData.alertId || `ALT${Date.now()}`,  // A - Alert ID
-      alertData.productSku || '',               // B - Product SKU
-      alertData.productName || '',              // C - Product Name
-      alertData.category || '',                 // D - Category
-      alertData.currentStock || 0,              // E - Current Stock
-      alertData.minimumStockLevel || 5,         // F - Minimum Stock Level
-      alertData.storeId || '',                  // G - Store ID
-      alertData.storeName || '',                // H - Store Name
-      new Date().toISOString().split('T')[0],   // I - Alert Date
-      alertData.alertType || 'Low Stock',       // J - Alert Type
-      alertData.reorderQuantity || 10,          // K - Reorder Quantity
-      alertData.supplierName || '',             // L - Supplier Name
-      alertData.supplierContact || '',          // M - Supplier Contact
-      alertData.expectedRestockDate || '',      // N - Expected Restock Date
-      alertData.status || 'Pending',            // O - Status
-      alertData.priority || 'Medium',           // P - Priority
-      alertData.notes || '',                    // Q - Notes
-      new Date().toISOString()                  // R - Last Updated
+    const sheets = await getSheets();
+    const refundId = `REF${Date.now()}`;
+    const row = [
+      refundId,
+      refundData.orderId || '',
+      refundData.shopifyOrderId || '',
+      new Date().toISOString(),
+      refundData.storeId || '',
+      refundData.storeName || '',
+      refundData.customerName || '',
+      refundData.customerEmail || '',
+      refundData.productSKU || '',
+      refundData.productName || '',
+      refundData.originalAmount || 0,
+      refundData.refundAmount || 0,
+      refundData.refundReason || '',
+      refundData.refundType || 'Full',
+      refundData.paymentMethod || '',
+      'Initiated',
+      refundData.processedBy || '',
+      '',
+      'No',
+      refundData.notes || ''
     ];
     
-    await sheet.appendRow('Stock Alerts', rowData);
-    logger.info('Stock alert logged', { alertId: alertData.alertId });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: 'Refunds!A:T',
+      valueInputOption: 'RAW',
+      resource: { values: [row] }
+    });
     
-    return true;
+    console.log('✅ Refund created');
+    return { success: true, refundId };
   } catch (error) {
-    logger.error('Stock alert error', { error: error.message });
+    console.error('❌ Error creating refund:', error.message);
     throw error;
   }
-};
-
-// ==================== SHEET 6: REFUNDS ====================
-
-const logRefund = async (refundData) => {
-  try {
-    const sheet = await getGoogleSheet();
-    
-    const rowData = [
-      refundData.refundId || `REF${Date.now()}`, // A - Refund ID
-      refundData.orderId || '',                 // B - Order ID
-      refundData.shopifyOrderId || '',          // C - Shopify Order ID
-      new Date().toISOString().split('T')[0],   // D - Refund Date
-      refundData.storeId || '',                 // E - Store ID
-      refundData.storeName || '',               // F - Store Name
-      refundData.customerName || '',            // G - Customer Name
-      refundData.customerEmail || '',           // H - Customer Email
-      refundData.productSku || '',              // I - Product SKU
-      refundData.productName || '',             // J - Product Name
-      refundData.originalAmount || 0,           // K - Original Amount
-      refundData.refundAmount || 0,             // L - Refund Amount
-      refundData.refundReason || '',            // M - Refund Reason
-      refundData.refundType || 'Full',          // N - Refund Type
-      refundData.paymentMethod || '',           // O - Payment Method
-      refundData.refundStatus || 'Initiated',   // P - Refund Status
-      refundData.processedBy || 'System',       // Q - Processed By
-      new Date().toISOString().split('T')[0],   // R - Processed Date
-      refundData.commissionAdjusted || 'No',    // S - Commission Adjusted
-      refundData.notes || ''                    // T - Notes
-    ];
-    
-    await sheet.appendRow('Refunds', rowData);
-    logger.info('Refund logged', { refundId: refundData.refundId });
-    
-    return true;
-  } catch (error) {
-    logger.error('Refund log error', { error: error.message });
-    throw error;
-  }
-};
-
-module.exports = { 
-  appendFormData,
-  addPartnerStore,
-  logOrder,
-  logAppointment,
-  logStockAlert,
-  logRefund
 };
