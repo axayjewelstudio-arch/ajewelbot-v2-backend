@@ -19,18 +19,21 @@ exports.handleFormSubmission = async (req, res) => {
     const sheetResult = await googleSheetsService.appendFormData(formData);
     console.log('✅ Google Sheets saved:', sheetResult.action);
     
-    // Step 3: Send Welcome Email
-    console.log('📧 Sending welcome email...');
-    await emailService.sendRegistrationEmail({
+    // Step 3: Send Welcome Email (NON-BLOCKING - Don't wait)
+    console.log('📧 Sending welcome email (async)...');
+    emailService.sendRegistrationEmail({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
       mobile: formData.mobile,
       customerType: formData.customerType
+    }).then(() => {
+      console.log('✅ Welcome email sent');
+    }).catch(err => {
+      console.error('⚠️ Email failed (non-critical):', err.message);
     });
-    console.log('✅ Welcome email sent');
     
-    // Success response
+    // SUCCESS RESPONSE (Don't wait for email)
     res.json({
       success: true,
       message: 'Registration successful',
