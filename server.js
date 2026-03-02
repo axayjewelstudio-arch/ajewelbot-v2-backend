@@ -3,6 +3,10 @@ const cors = require('cors');
 require('dotenv').config();
 
 const formRoutes = require('./routes/formRoutes');
+const productRoutes = require('./routes/productRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,13 +19,28 @@ app.use(express.urlencoded({ extended: true }));
 // Health check
 app.get('/', (req, res) => {
   res.json({
-    status: 'AJewelBot v2 API is running',
-    timestamp: new Date().toISOString()
+    status: 'AJewelBot v3 API is running',
+    version: '3.0.0',
+    timestamp: new Date().toISOString(),
+    features: [
+      'Customer Registration',
+      'Product Catalog',
+      'Cart Management',
+      'Order Processing',
+      'Razorpay Integration',
+      'Appointments',
+      'Email Notifications',
+      'Google Sheets Integration'
+    ]
   });
 });
 
 // Routes
 app.use('/api', formRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -29,13 +48,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: err.message
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ AJewelBot v2 Backend running on port ${PORT}`);
+  console.log(`✅ AJewelBot v3 Backend running on port ${PORT}`);
   console.log(`📊 Google Sheets: Connected`);
   console.log(`🛍️ Shopify: ${process.env.SHOPIFY_STORE}`);
+  console.log(`💳 Razorpay: Configured`);
+  console.log(`📧 Email: ${process.env.EMAIL_USER}`);
 });

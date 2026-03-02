@@ -46,7 +46,7 @@ exports.createOrUpdateCustomer = async (formData) => {
     };
     
     const response = await shopifyAPI.post('/customers.json', customerData);
-    console.log('✅ Shopify customer created successfully');
+    console.log('✅ Shopify customer created');
     return response.data.customer;
     
   } catch (error) {

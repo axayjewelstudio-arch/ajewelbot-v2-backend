@@ -1,7 +1,6 @@
 exports.validateFormData = (req, res, next) => {
   const { firstName, lastName, email, mobile, consentTerms } = req.body;
   
-  // Required fields
   if (!firstName || !lastName || !email || !mobile) {
     return res.status(400).json({
       success: false,
@@ -9,7 +8,6 @@ exports.validateFormData = (req, res, next) => {
     });
   }
   
-  // Email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return res.status(400).json({
@@ -18,7 +16,6 @@ exports.validateFormData = (req, res, next) => {
     });
   }
   
-  // Terms consent
   if (consentTerms !== 'yes' && consentTerms !== true) {
     return res.status(400).json({
       success: false,

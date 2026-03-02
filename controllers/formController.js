@@ -1,6 +1,6 @@
 const shopifyService = require('../services/shopifyService');
 const googleSheetsService = require('../services/googleSheetsService');
-const emailService = require('../services/emailService'); // ✅ NEW
+const emailService = require('../services/emailService');
 
 exports.handleFormSubmission = async (req, res) => {
   try {
@@ -19,7 +19,7 @@ exports.handleFormSubmission = async (req, res) => {
     const sheetResult = await googleSheetsService.appendFormData(formData);
     console.log('✅ Google Sheets saved:', sheetResult.action);
     
-    // Step 3: Send Welcome Email ✅ NEW
+    // Step 3: Send Welcome Email
     console.log('📧 Sending welcome email...');
     await emailService.sendRegistrationEmail({
       firstName: formData.firstName,
