@@ -15,6 +15,27 @@ const getSheets = async () => {
 };
 
 // ═══════════════════════════════════════════════════════════
+// HELPER FUNCTION - Add 91 prefix to mobile numbers
+// ═══════════════════════════════════════════════════════════
+
+const formatMobileNumber = (number) => {
+  if (!number) return '';
+  
+  let cleaned = number.toString().replace(/[\s\-\(\)]/g, '');
+  cleaned = cleaned.replace('+', '');
+  
+  if (cleaned.startsWith('91')) {
+    return cleaned;
+  }
+  
+  if (cleaned.startsWith('0')) {
+    cleaned = cleaned.substring(1);
+  }
+  
+  return '91' + cleaned;
+};
+
+// ═══════════════════════════════════════════════════════════
 // REGISTRATIONS SHEET (A:AQ - 43 columns)
 // ═══════════════════════════════════════════════════════════
 
@@ -29,9 +50,11 @@ const findRowByWhatsApp = async (whatsappNumber) => {
     const rows = result.data.values || [];
     for (let i = 0; i < rows.length; i++) {
       if (rows[i][0] === whatsappNumber) {
+        console.log(`✅ Found WhatsApp number in Column A at row ${i + 1}`);
         return i + 1;
       }
     }
+    console.log(`❌ WhatsApp number not found in Column A: ${whatsappNumber}`);
     return null;
   } catch (error) {
     console.error('❌ Error finding row:', error.message);
@@ -42,12 +65,19 @@ const findRowByWhatsApp = async (whatsappNumber) => {
 const updateExistingRow = async (rowNumber, formData) => {
   try {
     const sheets = await getSheets();
+    
+    const mobile = formatMobileNumber(formData.mobile);
+    const whatsapp = formatMobileNumber(formData.whatsapp || formData.mobile);
+    const businessMobile = formatMobileNumber(formData.businessMobile);
+    
+    console.log(`📱 Formatted - Mobile: ${mobile}, WhatsApp: ${whatsapp}, Business: ${businessMobile}`);
+    
     const rowData = [
       formData.firstName || '',
       formData.lastName || '',
       formData.gender || '',
-      formData.mobile || '',
-      formData.whatsapp || formData.mobile || '',
+      mobile,
+      whatsapp,
       formData.dob || '',
       formData.anniversary || '',
       formData.ageGroup || '',
@@ -72,7 +102,7 @@ const updateExistingRow = async (rowNumber, formData) => {
       formData.customerType || 'Retail',
       formData.businessName || '',
       formData.businessCategory || '',
-      formData.businessMobile || '',
+      businessMobile,
       formData.businessEmail || '',
       formData.businessAddress || '',
       formData.businessArea || '',
@@ -84,7 +114,7 @@ const updateExistingRow = async (rowNumber, formData) => {
       formData.consentWhatsApp || 'no',
       formData.consentTerms || 'no',
       formData.referralCode || '',
-      `${formData.firstName || ''} ${formData.lastName || ''} - ${new Date().toISOString()}`.trim()
+      `Updated: ${new Date().toISOString()}`
     ];
     
     await sheets.spreadsheets.values.update({
@@ -94,7 +124,7 @@ const updateExistingRow = async (rowNumber, formData) => {
       resource: { values: [rowData] }
     });
     
-    console.log(`✅ Updated row ${rowNumber}`);
+    console.log(`✅ Updated row ${rowNumber} (B:AQ only, Column A untouched)`);
     return { success: true, rowNumber, action: 'updated' };
   } catch (error) {
     console.error('❌ Error updating row:', error.message);
@@ -104,14 +134,23 @@ const updateExistingRow = async (rowNumber, formData) => {
 
 const createNewRow = async (formData) => {
   try {
+    console.log('⚠️ Creating new row - WhatsApp bot should have created Column A first');
+    
     const sheets = await getSheets();
+    
+    const mobile = formatMobileNumber(formData.mobile);
+    const whatsapp = formatMobileNumber(formData.whatsapp || formData.mobile);
+    const businessMobile = formatMobileNumber(formData.businessMobile);
+    
+    console.log(`📱 Formatted - Mobile: ${mobile}, WhatsApp: ${whatsapp}, Business: ${businessMobile}`);
+    
     const rowData = [
-      formData.whatsapp || formData.mobile || '',
+      whatsapp,
       formData.firstName || '',
       formData.lastName || '',
       formData.gender || '',
-      formData.mobile || '',
-      formData.whatsapp || formData.mobile || '',
+      mobile,
+      whatsapp,
       formData.dob || '',
       formData.anniversary || '',
       formData.ageGroup || '',
@@ -136,7 +175,7 @@ const createNewRow = async (formData) => {
       formData.customerType || 'Retail',
       formData.businessName || '',
       formData.businessCategory || '',
-      formData.businessMobile || '',
+      businessMobile,
       formData.businessEmail || '',
       formData.businessAddress || '',
       formData.businessArea || '',
@@ -148,7 +187,7 @@ const createNewRow = async (formData) => {
       formData.consentWhatsApp || 'no',
       formData.consentTerms || 'no',
       formData.referralCode || '',
-      `${formData.firstName || ''} ${formData.lastName || ''} - ${new Date().toISOString()}`.trim()
+      `Created: ${new Date().toISOString()}`
     ];
     
     await sheets.spreadsheets.values.append({
@@ -158,7 +197,7 @@ const createNewRow = async (formData) => {
       resource: { values: [rowData] }
     });
     
-    console.log('✅ Created new row');
+    console.log('✅ Created new row with formatted mobile numbers');
     return { success: true, action: 'created' };
   } catch (error) {
     console.error('❌ Error creating row:', error.message);
@@ -168,19 +207,20 @@ const createNewRow = async (formData) => {
 
 exports.appendFormData = async (formData) => {
   try {
-    const whatsappNumber = formData.whatsapp || formData.mobile;
+    const whatsappNumber = formatMobileNumber(formData.whatsapp || formData.mobile);
+    
     if (!whatsappNumber) {
       throw new Error('WhatsApp or Mobile number required');
     }
     
-    console.log(`🔍 Checking for WhatsApp number: ${whatsappNumber}`);
+    console.log(`🔍 Checking for WhatsApp number in Column A: ${whatsappNumber}`);
     const rowNumber = await findRowByWhatsApp(whatsappNumber);
     
     if (rowNumber) {
-      console.log(`✅ Match found at row ${rowNumber} - Updating...`);
+      console.log(`✅ Match found at row ${rowNumber} - Updating B:AQ only`);
       return await updateExistingRow(rowNumber, formData);
     } else {
-      console.log('❌ No match found - Creating new row...');
+      console.log('⚠️ No match in Column A - Creating new row');
       return await createNewRow(formData);
     }
   } catch (error) {
