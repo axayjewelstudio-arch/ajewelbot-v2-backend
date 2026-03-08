@@ -9,7 +9,6 @@ const orderRoutes       = require('./routes/orderRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 
 const razorpayWebhooks  = require('./webhooks/razorpayWebhooks');
-const shopifyWebhooks   = require('./webhooks/shopifyWebhooks');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -74,7 +73,6 @@ app.get('/invoice/:token', razorpayWebhooks.serveInvoice);
 // WEBHOOK ROUTES
 // ─────────────────────────────────────────────────────────────────────────────
 app.post('/webhooks/razorpay', razorpayWebhooks.handlePaymentWebhook);
-app.use('/webhooks/shopify',   shopifyWebhooks);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API ROUTES
